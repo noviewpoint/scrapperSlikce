@@ -86,7 +86,8 @@ const scrape = async (mySpecialUsername) => {
                     timestamp: timestamp,
                     missing: missing,
                     duplicates: duplicates,
-                    cardsByCollector: {}
+                    cardsByCollector: {},
+                    recommendedTrade: []
                 };
             } else {
                 let d = new Date();
@@ -176,12 +177,68 @@ const calculateDiff = (otherCollectors, myData) => {
         });
 
         collector.matchScore = Math.min(collector.matchedMyDuplicates.length, collector.matchedMyMissing.length);
+        collector.recommendedTrade = calculateRecommended(collector.matchedMyMissing, collector.matchedMyDuplicates, collector.matchScore);
 
     });
 
     otherCollectors.sort((a, b) => {
         return a.matchScore - b.matchScore;
     });
+
+};
+
+const calculateRecommended = (missingRef, duplicatesRef, limitRef) => {
+
+    let missing = JSON.parse(JSON.stringify(missingRef));
+    let duplicates = JSON.parse(JSON.stringify(duplicatesRef));
+    let limit = JSON.parse(JSON.stringify(limitRef));
+    const recommended = [];
+
+    for (let i = 0, length = missing.length; i < length, limit > 0; i++, limit--) {
+
+        let a;
+        let b;
+
+        if (missing[i] % 20 === 0) { // golden
+            goldenLoop:
+            for (let j = 0, length = duplicates.length; j < length; j++) {
+                if (duplicates[j] % 20 === 0) {
+                    a = missing[i];
+                    b = duplicates[j];
+                    duplicates.splice(j, 1);
+                    break goldenLoop;
+                }
+            }
+        } else if (missing[i] % 20 === 1) { // group picture
+            groupPictureLoop:
+            for (let j = 0, length = duplicates.length; j < length; j++) {
+                if (duplicates[j] % 20 === 1) {
+                    a = missing[i];
+                    b = duplicates[j];
+                    duplicates.splice(j, 1);
+                    break groupPictureLoop;
+                }
+            }
+        } else { // ordinary
+            ordinaryLoop:
+            for (let j = 0, length = duplicates.length; j < length; j++) {
+                if (duplicates[j] % 20 !== 0 && duplicates[j] % 20 !== 1) {
+                    a = missing[i];
+                    b = duplicates[j];
+                    duplicates.splice(j, 1);
+                    break ordinaryLoop;
+                }
+            }
+        }
+
+        if (a && b) {
+            recommended.push("[" + a + " - " + b + "]");
+        }
+
+    }
+
+    return recommended;
+
 
 };
 
@@ -197,6 +254,7 @@ const showMatches = (matches, mySpecialData) => {
         var temp = `---------------------------------------------------------------------\n${collector.username} iz dne ${collector.timestamp} je tvoj match za ${collector.matchScore} sličic.\n`;
         temp += `Ponuja ti ${collector.matchedMyMissing.length} sličic:\n${collector.matchedMyMissing}\nIšče ${collector.matchedMyDuplicates.length} sličic:\n${collector.matchedMyDuplicates}\n`;
         temp += `Predlagam zamenjavo ${collector.matchScore} njegovih sličic:\n${collector.matchedMyMissing.slice(0, collector.matchScore)}\nza ${collector.matchScore} tvojih:\n${collector.matchedMyDuplicates.slice(0, collector.matchScore)}\n`;
+        temp += `Z upoštevanje pravila zlata za zlato, skupinska za skupinsko, navadna za navadno, predlagam zamenjavo ${collector.recommendedTrade.length} njegovih sličic s tvojimi:\n${collector.recommendedTrade}\n`;
         writeLog += temp; 
 
     });
