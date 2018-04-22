@@ -2,6 +2,8 @@ var rp = require('request-promise');
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 
+const sliciceUsername = process.env.sliciceUsername || "marvin";
+
 const scrape = async (mySpecialUsername) => {
 
     let count = 0;
@@ -115,4 +117,4 @@ const showMatches = (matches) => {
 
 };
 
-scrape("marvin");
+scrape(sliciceUsername);
