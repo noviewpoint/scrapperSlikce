@@ -2,11 +2,14 @@ var rp = require('request-promise');
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 const fs = require('fs');
+const moment = require('moment');
 
 const sliciceUsername = process.env.sliciceUsername || "marvin";
 
 const excludeFromMyMissing = [27,57,79,95,115,117,147,157,167,204,207,224,225,228,259,311,334,342,347,360,387,398,399,428,430,437,451,499,502,503,514,519,538,543,569,580,602,612,615,632,652];
 const excludeFromMyDuplicates = [8,14,15,26,44,68,70,99,104,114,152,159,176,211,214,229,230,237,245,270,273,318,329,352,367,369,415,436,454,458,484,495,497,509,510,512,518,554,555,559,561,582,592,619,631,635];
+
+const daysOld = process.env.daysOld || 7;
 
 const scrape = async (mySpecialUsername) => {
 
@@ -30,7 +33,7 @@ const scrape = async (mySpecialUsername) => {
 
             domHead = el.querySelector("div.offersBrowserHead.fix");
             username = domHead.querySelector("a.userName").textContent;
-            timestamp = domHead.querySelector("span.offerDate").textContent;
+            timestamp = moment(domHead.querySelector("span.offerDate").textContent, 'DD-MM-YYYY').toDate();
             
             domBody = el.querySelector("div.offersBrowserrEntry.fix");
             missing = domBody.querySelector("p.missing").textContent;
@@ -83,6 +86,12 @@ const scrape = async (mySpecialUsername) => {
                     cardsByCollector: {}
                 };
             } else {
+                let d = new Date();
+                d.setDate(d.getDate() - daysOld);
+                if (new Date(timestamp) < d) {
+                    return; // drop this element, too old
+                }
+
                 elements.push({
                     username: username,
                     timestamp: timestamp,

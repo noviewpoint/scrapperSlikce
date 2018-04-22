@@ -4,4 +4,4 @@
 
 1. run 'npm install'
 
-2. export sliciceUsername="marvin" && node doit.js 
+2. export sliciceUsername="marvin" && export daysOld=3 && node doit.js 
