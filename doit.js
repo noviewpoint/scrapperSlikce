@@ -1,8 +1,10 @@
 var rp = require('request-promise');
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
+const fs = require('fs');
 
 const sliciceUsername = process.env.sliciceUsername || "marvin";
+let writeLog = "";
 
 const scrape = async (mySpecialUsername) => {
 
@@ -111,8 +113,18 @@ const showMatches = (matches) => {
 
     matches.map((collector) => {
 
-        console.log(`\n${collector.username} iz dne ${collector.timestamp} je tvoj match: ${collector.matchScore}\nPonuja ti sličice ${collector.matchedMyMissing} in išče tvoje ${collector.matchedMyDuplicates}`);
+        var temp = `\n${collector.username} iz dne ${collector.timestamp} je tvoj match: ${collector.matchScore}\nPonuja ti sličice ${collector.matchedMyMissing} in išče tvoje ${collector.matchedMyDuplicates}`;
+        console.log(temp);
+        writeLog += temp; 
 
+    });
+
+    // write to a new file named 2pac.txt
+    fs.writeFile('log.txt', writeLog, (err) => {  
+        // throws an error, you could also catch it here
+        if (err) throw err;
+        // success case, the file was saved
+        console.log('Log saved!');
     });
 
 };
