@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "jsdom": "^11.8.0",
+    "moment": "^2.22.1",
     "request": "^2.85.0",
     "request-promise": "^4.2.2",
     "string-to-dom": "^0.1.5"
