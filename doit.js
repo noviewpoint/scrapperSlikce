@@ -4,7 +4,6 @@ const { JSDOM } = jsdom;
 const fs = require('fs');
 
 const sliciceUsername = process.env.sliciceUsername || "marvin";
-let writeLog = "";
 
 const scrape = async (mySpecialUsername) => {
 
@@ -111,20 +110,27 @@ const calculateDiff = (otherCollectors, myData) => {
 
 const showMatches = (matches) => {
 
+    let writeLog = "";
+
     matches.map((collector) => {
 
-        var temp = `\n${collector.username} iz dne ${collector.timestamp} je tvoj match: ${collector.matchScore}\nPonuja ti sličice:\n${collector.matchedMyMissing}\nIšče tvoje sličice:\n${collector.matchedMyDuplicates}\n`;
+        var temp = `---------------------------------------------------------------------\n${collector.username} iz dne ${collector.timestamp} je tvoj match za ${collector.matchScore} sličic.\nPonuja ti ${collector.matchedMyMissing.length} sličic:\n${collector.matchedMyMissing}\nIšče ${collector.matchedMyDuplicates.length} sličic:\n${collector.matchedMyDuplicates}\n`;
         console.log(temp);
         writeLog += temp; 
 
     });
 
-    // write to a new file named 2pac.txt
-    fs.writeFile('log.txt', writeLog, (err) => {  
-        // throws an error, you could also catch it here
-        if (err) throw err;
-        // success case, the file was saved
-        console.log('Log saved!');
+    fs.writeFile("log.txt", "", (err) => { // clear this txt file
+        if (err) {
+            throw err;
+        }
+        console.log("File cleared");
+        fs.writeFile("log.txt", writeLog, (err) => {  
+            if (err) {
+                throw err;
+            }
+            console.log('Log saved!');
+        });
     });
 
 };
