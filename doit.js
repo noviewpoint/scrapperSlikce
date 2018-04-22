@@ -5,6 +5,11 @@ const fs = require('fs');
 
 const sliciceUsername = process.env.sliciceUsername || "marvin";
 
+const excludeFromMyMissing = [27,57,79,95,115,117,147,157,167,204,207,224,225,228,259,311,334,342,347,360,387,398,399,428,430,437,451,499,502,503,514,519,538,543,569,580,602,612,615,632,652
+];
+const excludeFromMyDuplicates = [8,14,15,26,44,68,70,99,104,114,152,159,176,211,214,229,230,237,245,270,273,318,329,352,367,369,415,436,454,458,484,495,497,509,510,512,518,554,555,559,561,582,592,619,631,635
+];
+
 const scrape = async (mySpecialUsername) => {
 
     let count = 0;
@@ -47,7 +52,31 @@ const scrape = async (mySpecialUsername) => {
             });
 
             if (username === mySpecialUsername) {
-                console.log("Scrapper found your data for username", username, ". Storing your data");
+                console.log(`Scrapper found your data for username ${username}. Storing your data`);
+
+                console.log("V albumu ti manjka", missing.length, "sličic");
+                console.log("Ponujaš", duplicates.length, "različnih sličic");
+            
+                if (excludeFromMyMissing.length) {
+                    missing = missing.filter((card) => {
+                        if (excludeFromMyMissing.includes(card)) {
+                            return false;
+                        }
+                        return true;
+                    });
+                    console.log("S tvojim popravkom ti sedaj v albumu manjka", missing.length, "sličic");
+                }
+
+                if (excludeFromMyDuplicates.length) {
+                    duplicates = duplicates.filter((card) => {
+                        if (excludeFromMyDuplicates.includes(card)) {
+                            return false;
+                        }
+                        return true;
+                    });
+                    console.log("S tvojim popravkom sedaj ponujaš", duplicates.length, "sličic");
+                }
+
                 mySpecialData = {
                     username: username,
                     timestamp: timestamp,
@@ -76,6 +105,11 @@ const scrape = async (mySpecialUsername) => {
             count++;
         }
 
+    }
+
+    if (!mySpecialData.username) {
+        console.log("You have not entered valid username. Ending program");
+        return;
     }
 
     calculateDiff(elements, mySpecialData);
@@ -117,17 +151,20 @@ const showMatches = (matches, mySpecialData) => {
 
     let writeLog = "";
 
+    var temp = "---------------------------------------------------------------------\n     SUITABLE COLLECTORS:     \n---------------------------------------------------------------------\n\n\n";
+    writeLog += temp;
+
     matches.map((collector) => {
 
-        var temp = `---------------------------------------------------------------------\n${collector.username} iz dne ${collector.timestamp} je tvoj match za ${collector.matchScore} sličic.\nPonuja ti ${collector.matchedMyMissing.length} sličic:\n${collector.matchedMyMissing}\nIšče ${collector.matchedMyDuplicates.length} sličic:\n${collector.matchedMyDuplicates}\n`;
-        console.log(temp);
+        var temp = `---------------------------------------------------------------------\n${collector.username} iz dne ${collector.timestamp} je tvoj match za ${collector.matchScore} sličic.\n`;
+        temp += `Ponuja ti ${collector.matchedMyMissing.length} sličic:\n${collector.matchedMyMissing}\nIšče ${collector.matchedMyDuplicates.length} sličic:\n${collector.matchedMyDuplicates}\n`;
+        temp += `Predlagam zamenjavo ${collector.matchScore} njegovih sličic:\n${collector.matchedMyMissing.slice(0, collector.matchScore)}\nza ${collector.matchScore} tvojih:\n${collector.matchedMyDuplicates.slice(0, collector.matchScore)}\n`;
         writeLog += temp; 
 
     });
 
-    var temp2 = "\n\n\n\n---------------------------------------------------------------------\nYOUR MISSING CARDS BY COLLECTOR:\n---------------------------------------------------------------------" + JSON.stringify(mySpecialData.cardsByCollector, null, 4);
-    console.log(temp2);
-    writeLog += temp2;
+    var temp = "\n\n\n\n---------------------------------------------------------------------\nYOUR MISSING CARDS BY COLLECTOR:\n---------------------------------------------------------------------\n\n" + JSON.stringify(mySpecialData.cardsByCollector, null, 4);
+    writeLog += temp;
 
     fs.writeFile("log.txt", "", (err) => { // clear this txt file
         if (err) {
@@ -139,6 +176,7 @@ const showMatches = (matches, mySpecialData) => {
                 throw err;
             }
             console.log('Log saved!');
+            console.log("Rezultati zabeleženi v log.txt datoteki");
         });
     });
 
