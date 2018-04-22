@@ -6,8 +6,11 @@ const moment = require('moment');
 
 const sliciceUsername = process.env.sliciceUsername || "marvin";
 
-const excludeFromMyMissing = [27,57,79,95,115,117,147,157,167,204,207,224,225,228,259,311,334,342,347,360,387,398,399,428,430,437,451,499,502,503,514,519,538,543,569,580,602,612,615,632,652];
-const excludeFromMyDuplicates = [8,14,15,26,44,68,70,99,104,114,152,159,176,211,214,229,230,237,245,270,273,318,329,352,367,369,415,436,454,458,484,495,497,509,510,512,518,554,555,559,561,582,592,619,631,635];
+const excludeFromMyMissing = [];
+const excludeFromMyDuplicates = [];
+
+// card types
+const { speciaStart, stadiums, main, goldens, groupPictures, specialEnd } = makeCards();
 
 const daysOld = process.env.daysOld || 7;
 
@@ -123,6 +126,34 @@ const scrape = async (mySpecialUsername) => {
     showMatches(elements, mySpecialData);
 
 };
+
+function makeCards() {
+
+    const speciaStart = [1, 2, 3, 4, 5, 6, 7];
+    const stadiums = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+    const specialEnd = [660, 661, 662, 663, 664, 665, 666, 667, 668, 669];
+    const main = [];
+    const goldens = [];
+    const groupPictures = [];
+
+    for (let i = 20; i < 659; i++) {
+        if (i % 20 === 0) {
+            goldens.push(i);
+        } else if (i % 20 === 1) {
+            groupPictures.push(i);
+        } else {
+            main.push(i);
+        }
+    }
+    return {
+        speciaStart: speciaStart,
+        stadiums: stadiums,
+        specialEnd: specialEnd,
+        main: main,
+        goldens: goldens,
+        groupPictures: groupPictures
+    };
+}
 
 const calculateDiff = (otherCollectors, myData) => {
 
