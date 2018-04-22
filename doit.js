@@ -113,7 +113,7 @@ const showMatches = (matches) => {
 
     matches.map((collector) => {
 
-        var temp = `\n${collector.username} iz dne ${collector.timestamp} je tvoj match: ${collector.matchScore}\nPonuja ti sličice ${collector.matchedMyMissing} in išče tvoje ${collector.matchedMyDuplicates}`;
+        var temp = `\n${collector.username} iz dne ${collector.timestamp} je tvoj match: ${collector.matchScore}\nPonuja ti sličice:\n${collector.matchedMyMissing}\nIšče tvoje sličice:\n${collector.matchedMyDuplicates}\n`;
         console.log(temp);
         writeLog += temp; 
 
