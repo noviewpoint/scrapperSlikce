@@ -52,7 +52,8 @@ const scrape = async (mySpecialUsername) => {
                     username: username,
                     timestamp: timestamp,
                     missing: missing,
-                    duplicates: duplicates
+                    duplicates: duplicates,
+                    cardsByCollector: {}
                 };
             } else {
                 elements.push({
@@ -78,7 +79,7 @@ const scrape = async (mySpecialUsername) => {
     }
 
     calculateDiff(elements, mySpecialData);
-    showMatches(elements);
+    showMatches(elements, mySpecialData);
 
 };
 
@@ -95,6 +96,10 @@ const calculateDiff = (otherCollectors, myData) => {
         collector.duplicates.forEach((card) => {
             if (myData.missing.includes(card)) {
                 collector.matchedMyMissing.push(card);
+                if (!Array.isArray(myData.cardsByCollector[card])) { // initialize array if not already an array
+                    myData.cardsByCollector[card] = [];
+                }
+                myData.cardsByCollector[card].push(collector.username);
             }
         });
 
@@ -108,7 +113,7 @@ const calculateDiff = (otherCollectors, myData) => {
 
 };
 
-const showMatches = (matches) => {
+const showMatches = (matches, mySpecialData) => {
 
     let writeLog = "";
 
@@ -119,6 +124,10 @@ const showMatches = (matches) => {
         writeLog += temp; 
 
     });
+
+    var temp2 = "\n\n\n\n---------------------------------------------------------------------\nYOUR MISSING CARDS BY COLLECTOR:\n---------------------------------------------------------------------" + JSON.stringify(mySpecialData.cardsByCollector, null, 4);
+    console.log(temp2);
+    writeLog += temp2;
 
     fs.writeFile("log.txt", "", (err) => { // clear this txt file
         if (err) {
