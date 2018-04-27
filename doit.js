@@ -7,15 +7,13 @@ const moment = require('moment');
 const sliciceUsername = process.env.sliciceUsername || "marvin";
 const daysOld = process.env.daysOld || 7;
 
-const excludeFromMyMissing = [];
-const excludeFromMyDuplicates = [];
+const elements = [];
+let mySpecialData = {};
 
 const scrape = async (mySpecialUsername) => {
 
     let count = 0;
     let dom = [];
-    const elements = [];
-    let mySpecialData = {};
 
     while(count === 0 || dom.length > 0) {
 
@@ -46,28 +44,7 @@ const scrape = async (mySpecialUsername) => {
             if (username === mySpecialUsername) {
 
                 console.log(`Scrapper found your data for username ${username}`);
-                console.log(`Your are missing ${missing.length} cards in your album`);
-                console.log(`You have ${duplicates.length} unique cards available for trade`);
-            
-                if (excludeFromMyMissing.length) {
-                    missing = missing.filter((card) => {
-                        if (excludeFromMyMissing.includes(card)) {
-                            return false;
-                        }
-                        return true;
-                    });
-                    console.log(`Based on your correction you are now missing ${missing.length} cards in your album`);
-                }
-
-                if (excludeFromMyDuplicates.length) {
-                    duplicates = duplicates.filter((card) => {
-                        if (excludeFromMyDuplicates.includes(card)) {
-                            return false;
-                        }
-                        return true;
-                    });
-                    console.log(`Based on your correction you now have ${duplicates.length} unique cards available for trade`);
-                }
+                console.log(`You are now missing ${padZeros(missing.length)} cards in your album and have ${padZeros(duplicates.length)} unique cards available for trade`);
 
                 mySpecialData = {
                     username: username,
@@ -103,11 +80,10 @@ const scrape = async (mySpecialUsername) => {
 
     if (!mySpecialData.username) {
         console.log("You have not entered valid username. Ending program");
-        return;
+        return false;
     }
 
-    calculateDiff(elements, mySpecialData);
-    showMatches(elements, mySpecialData);
+    return true;
 
 };
 
@@ -172,6 +148,18 @@ const isRegular = (card) => {
 };
 
 const calculateDiff = (otherCollectors, myData) => {
+    // empty everything
+    otherCollectors.forEach((collector) => {
+
+        collector.missing.forEach((card) => {
+            collector.matchedMyDuplicates = [];
+        });
+
+        collector.duplicates.forEach((card) => {
+            collector.matchedMyMissing = [];
+        });
+
+    });
 
     otherCollectors.forEach((collector) => {
 
@@ -187,7 +175,9 @@ const calculateDiff = (otherCollectors, myData) => {
                 if (!Array.isArray(myData.cardsByCollector[card])) { // initialize array if not already an array
                     myData.cardsByCollector[card] = [];
                 }
-                myData.cardsByCollector[card].push(collector.username);
+                if (!myData.cardsByCollector[card].includes(collector.username)) { // dont re-add again!
+                    myData.cardsByCollector[card].push(collector.username);
+                }
             }
         });
 
@@ -226,25 +216,29 @@ const calculateRecommended = (missingRef, duplicatesRef, limitRef) => {
 
     for (let i = 0, length = missing.length; i < length; i++) {
 
-        let a = missing[i];
-        let b;
+        let mine = missing[i];
+        let his;
 
         if (isGolden(missing[i])) {
-            b = searchCards(duplicates, isGolden);
+            his = searchCards(duplicates, isGolden);
         } else if (isGroupPicture(missing[i])) {
-            b = searchCards(duplicates, isGroupPicture);
+            his = searchCards(duplicates, isGroupPicture);
         } else if (isStadium(missing[i])) {
-            b = searchCards(duplicates, isStadium);
+            his = searchCards(duplicates, isStadium);
         } else if (is1To7(missing[i])) {
-            b = searchCards(duplicates, is1To7);
+            his = searchCards(duplicates, is1To7);
         } else if (is660To669(missing[i])) {
-            b = searchCards(duplicates, is660To669);
+            his = searchCards(duplicates, is660To669);
         } else { // should be regular
-            b = searchCards(duplicates, isRegular);
+            his = searchCards(duplicates, isRegular);
         }
 
-        if (a && b) {
-            recommended.push("[" + a + " - " + b + "]");
+        if (mine && his) {
+            recommended.push({
+                text: "[" + padZeros(mine) + " - " + padZeros(his) + "]",
+                mine: mine,
+                his: his
+            });
         }
 
         if (recommended.length === limit) {
@@ -257,7 +251,7 @@ const calculateRecommended = (missingRef, duplicatesRef, limitRef) => {
 
 };
 
-const showMatches = (matches, mySpecialData) => {
+const showMatches = (matches, mySpecialData, file) => {
 
     let writeLog = "";
 
@@ -280,7 +274,7 @@ const showMatches = (matches, mySpecialData) => {
 
         var temp = `---------------------------------------------------------------------\n${collector.username} iz dne ${collector.timestamp.toDateString()} je tvoj match za ${collector.matchScore} sličic.\n`;
         temp += `Ponuja ti ${matchedMyMissing.length} svojih sličic:\n${matchedMyMissing.join(", ")}\nIšče ${matchedMyDuplicates.length} tvojih sličic:\n${matchedMyDuplicates.join(", ")}\n`;
-        temp += `Predlagam zamenjavo ${collector.recommendedTrade.length} sličic:\n${collector.recommendedTrade}\n`;
+        temp += `Predlagam zamenjavo ${collector.recommendedTrade.length} sličic:\n${collector.recommendedTrade.map((el) => { return el.text; })}\n`;
         writeLog += temp; 
 
     });
@@ -288,17 +282,17 @@ const showMatches = (matches, mySpecialData) => {
     var temp = "\n\n\n\n---------------------------------------------------------------------\nYOUR MISSING CARDS BY COLLECTOR:\n---------------------------------------------------------------------\n\n" + JSON.stringify(mySpecialData.cardsByCollector, null, 4);
     writeLog += temp;
 
-    fs.writeFile("log.txt", "", (err) => { // clear this txt file
+    fs.writeFile(file, "", (err) => { // clear this txt file
         if (err) {
             throw err;
         }
         console.log("File cleared");
-        fs.writeFile("log.txt", writeLog, (err) => {  
+        fs.writeFile(file, writeLog, (err) => {  
             if (err) {
                 throw err;
             }
-            console.log('Log saved!');
-            console.log("Results stored to log.txt file");
+            console.log("Log saved!");
+            console.log(`Results stored to ${file} file`);
         });
     });
 
@@ -314,4 +308,62 @@ const padZeros = (number) => {
 
 };
 
-scrape(sliciceUsername);
+const autoTrade = (elementsOld, mySpecialDataOld) => {
+
+    // start with already once performed calculateDiff function!
+    console.log("\nStarting to auto trade");
+
+    // create copies (break reference)
+    const elements = elementsOld.slice();
+    const mySpecialData = JSON.parse(JSON.stringify(mySpecialDataOld));
+    let counter = 0;
+
+    while (mySpecialData.missing.length !== 0 && mySpecialData.duplicates.length !== 0) {
+
+        counter++;
+        // zadnji element v elements je zbiratelj z najvec matchi
+        const match = elements[elements.length - 1];
+
+        const useful = elements[elements.length - 1].recommendedTrade.map((trade) => { // if there are no trades, .map wont run!
+            
+            mySpecialData.missing = mySpecialData.missing.filter((card) => {
+                if (trade.mine === card) {
+                    return false;
+                }
+                return true;
+            });
+
+            mySpecialData.duplicates = mySpecialData.duplicates.filter((card) => {
+                if (trade.his === card) {
+                    return false;
+                }
+                return true;
+            });
+
+            return trade.text;
+
+        });
+
+        if (useful.length < 1) {
+            break;
+        }
+
+        console.log(`\nTrade #${counter} performed with ${match.username}:\n${useful.join(", ")}`);
+        console.log(`You are now missing ${padZeros(mySpecialData.missing.length)} cards in your album and have ${padZeros(mySpecialData.duplicates.length)} unique cards available for trade`);
+
+        calculateDiff(elements, mySpecialData);
+
+    }
+
+    console.log("\nThere are no more suitable trading cards. Ending program");
+
+};
+
+(async () => {
+    const valid = await scrape(sliciceUsername);
+    if (valid) {
+        calculateDiff(elements, mySpecialData);
+        showMatches(elements, mySpecialData, "log.txt");
+        autoTrade(elements, mySpecialData); 
+    }
+})();
