@@ -5,61 +5,49 @@ const fs = require('fs');
 const moment = require('moment');
 
 const sliciceUsername = process.env.sliciceUsername || "marvin";
+const daysOld = process.env.daysOld || 7;
 
 const excludeFromMyMissing = [];
 const excludeFromMyDuplicates = [];
 
-// card types
-const { speciaStart, stadiums, main, goldens, groupPictures, specialEnd } = makeCards();
-
-const daysOld = process.env.daysOld || 7;
-
 const scrape = async (mySpecialUsername) => {
 
     let count = 0;
-    let endLoop = false;
-
-    let data;
-    let dom;
+    let dom = [];
     const elements = [];
     let mySpecialData = {};
 
-    while(!endLoop) {
+    while(count === 0 || dom.length > 0) {
 
-        let url = "http://slicice.net/search/albums.html?go=true&id=51&position=" +  count;
-        data = await rp(url);
-
-        dom = new JSDOM(data);
-        dom = dom.window.document.querySelectorAll("div.offersBrowserRight.fix.right");
+        const temp = new JSDOM(await rp("http://slicice.net/search/albums.html?go=true&id=51&position=" +  count));
+        dom = temp.window.document.querySelectorAll("div.offersBrowserRight.fix.right");
 
         dom.forEach((el) => {
 
-            domHead = el.querySelector("div.offersBrowserHead.fix");
-            username = domHead.querySelector("a.userName").textContent;
-            timestamp = moment(domHead.querySelector("span.offerDate").textContent, 'DD-MM-YYYY').toDate();
+            const domHead = el.querySelector("div.offersBrowserHead.fix");
+            const username = domHead.querySelector("a.userName").textContent;
+            const timestamp = moment(domHead.querySelector("span.offerDate").textContent, 'DD-MM-YYYY').toDate();
             
-            domBody = el.querySelector("div.offersBrowserrEntry.fix");
-            missing = domBody.querySelector("p.missing").textContent;
-            var temp = missing.replace(/iščem: /g,'').replace(/\s/g,'').split(",");
-            missing = temp.filter((el) => {
+            const domBody = el.querySelector("div.offersBrowserrEntry.fix");
+            const tempMissing = domBody.querySelector("p.missing").textContent.replace(/iščem: /g,'').replace(/\s/g,'');
+            let missing = tempMissing.split(",").filter((el) => {
                 return el !== "";
             }).map((el) => {
                 return Number(el);
             });
 
-            duplicates = domBody.querySelector("p.duplicates").textContent;
-            var temp = duplicates.replace(/ponujam: /g,'').replace(/\s/g,'').split(",");
-            duplicates = temp.filter((el) => {
+            const tempDuplicates = domBody.querySelector("p.duplicates").textContent.replace(/ponujam: /g,'').replace(/\s/g,'');
+            let duplicates = tempDuplicates.split(",").filter((el) => {
                 return el !== "";
             }).map((el) => {
                 return Number(el);
             });
 
             if (username === mySpecialUsername) {
-                console.log(`Scrapper found your data for username ${username}. Storing your data`);
 
-                console.log("V albumu ti manjka", missing.length, "sličic");
-                console.log("Ponujaš", duplicates.length, "različnih sličic");
+                console.log(`Scrapper found your data for username ${username}`);
+                console.log(`Your are missing ${missing.length} cards in your album`);
+                console.log(`You have ${duplicates.length} unique cards available for trade`);
             
                 if (excludeFromMyMissing.length) {
                     missing = missing.filter((card) => {
@@ -68,7 +56,7 @@ const scrape = async (mySpecialUsername) => {
                         }
                         return true;
                     });
-                    console.log("S tvojim popravkom ti sedaj v albumu manjka", missing.length, "sličic");
+                    console.log(`Based on your correction you are now missing ${missing.length} cards in your album`);
                 }
 
                 if (excludeFromMyDuplicates.length) {
@@ -78,7 +66,7 @@ const scrape = async (mySpecialUsername) => {
                         }
                         return true;
                     });
-                    console.log("S tvojim popravkom sedaj ponujaš", duplicates.length, "sličic");
+                    console.log(`Based on your correction you now have ${duplicates.length} unique cards available for trade`);
                 }
 
                 mySpecialData = {
@@ -109,12 +97,7 @@ const scrape = async (mySpecialUsername) => {
 
         });
 
-        if (dom.length === 0) {
-            endLoop = true;
-            console.log("Ending loop with a count of", count);
-        } else {
-            count++;
-        }
+        count++;
 
     }
 
@@ -128,33 +111,65 @@ const scrape = async (mySpecialUsername) => {
 
 };
 
-function makeCards() {
+const isGolden = (card) => {
 
-    const speciaStart = [1, 2, 3, 4, 5, 6, 7];
-    const stadiums = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
-    const specialEnd = [660, 661, 662, 663, 664, 665, 666, 667, 668, 669];
-    const main = [];
-    const goldens = [];
-    const groupPictures = [];
-
-    for (let i = 20; i < 659; i++) {
-        if (i % 20 === 0) {
-            goldens.push(i);
-        } else if (i % 20 === 1) {
-            groupPictures.push(i);
-        } else {
-            main.push(i);
-        }
+    if (card % 20 === 0 && card > 19 && card < 660) {
+        return true;
     }
-    return {
-        speciaStart: speciaStart,
-        stadiums: stadiums,
-        specialEnd: specialEnd,
-        main: main,
-        goldens: goldens,
-        groupPictures: groupPictures
-    };
+
+    return false;
+
+};
+
+const isGroupPicture = (card) => {
+
+    if (card % 20 === 1 && card > 19 && card < 660) {
+        return true;
+    }
+
+    return false;
+
+};
+
+const isStadium = (card) => {
+
+    if (card > 7 && card < 20) {
+        return true;
+    }
+
+    return false;
+
+};
+
+const is1To7 = (card) => {
+
+    if (card > 0 && card < 8) {
+        return true;
+    }
+
+    return false;
+
+};
+
+const is660To669 = (card) => {
+
+    if (card > 659 && card < 670) {
+        return true;
+    }
+
+    return false;
+
 }
+
+const isRegular = (card) => {
+    
+    if (card % 20 !== 0 && card % 20 !== 1 && card > 21 && card < 660) {
+        return true;
+    }
+
+    return false;
+
+};
 
 const calculateDiff = (otherCollectors, myData) => {
 
@@ -187,58 +202,58 @@ const calculateDiff = (otherCollectors, myData) => {
 
 };
 
+const searchCards = (duplicates, callback) => {
+
+    for (let j = 0, length = duplicates.length; j < length; j++) {
+        
+        if (callback(duplicates[j])) {
+            const temp = duplicates[j];
+            duplicates.splice(j, 1);
+            return temp;
+        }
+
+    }
+
+};
+
 const calculateRecommended = (missingRef, duplicatesRef, limitRef) => {
 
+    // create copies
     let missing = JSON.parse(JSON.stringify(missingRef));
     let duplicates = JSON.parse(JSON.stringify(duplicatesRef));
-    let limit = JSON.parse(JSON.stringify(limitRef));
+    const limit = JSON.parse(JSON.stringify(limitRef));
     const recommended = [];
 
-    for (let i = 0, length = missing.length; i < length, limit > 0; i++, limit--) {
+    for (let i = 0, length = missing.length; i < length; i++) {
 
-        let a;
+        let a = missing[i];
         let b;
 
-        if (missing[i] % 20 === 0) { // golden
-            goldenLoop:
-            for (let j = 0, length = duplicates.length; j < length; j++) {
-                if (duplicates[j] % 20 === 0) {
-                    a = missing[i];
-                    b = duplicates[j];
-                    duplicates.splice(j, 1);
-                    break goldenLoop;
-                }
-            }
-        } else if (missing[i] % 20 === 1) { // group picture
-            groupPictureLoop:
-            for (let j = 0, length = duplicates.length; j < length; j++) {
-                if (duplicates[j] % 20 === 1) {
-                    a = missing[i];
-                    b = duplicates[j];
-                    duplicates.splice(j, 1);
-                    break groupPictureLoop;
-                }
-            }
-        } else { // ordinary
-            ordinaryLoop:
-            for (let j = 0, length = duplicates.length; j < length; j++) {
-                if (duplicates[j] % 20 !== 0 && duplicates[j] % 20 !== 1) {
-                    a = missing[i];
-                    b = duplicates[j];
-                    duplicates.splice(j, 1);
-                    break ordinaryLoop;
-                }
-            }
+        if (isGolden(missing[i])) {
+            b = searchCards(duplicates, isGolden);
+        } else if (isGroupPicture(missing[i])) {
+            b = searchCards(duplicates, isGroupPicture);
+        } else if (isStadium(missing[i])) {
+            b = searchCards(duplicates, isStadium);
+        } else if (is1To7(missing[i])) {
+            b = searchCards(duplicates, is1To7);
+        } else if (is660To669(missing[i])) {
+            b = searchCards(duplicates, is660To669);
+        } else { // should be regular
+            b = searchCards(duplicates, isRegular);
         }
 
         if (a && b) {
             recommended.push("[" + a + " - " + b + "]");
         }
 
+        if (recommended.length === limit) {
+            break;
+        }
+
     }
 
     return recommended;
-
 
 };
 
@@ -251,10 +266,21 @@ const showMatches = (matches, mySpecialData) => {
 
     matches.map((collector) => {
 
-        var temp = `---------------------------------------------------------------------\n${collector.username} iz dne ${collector.timestamp} je tvoj match za ${collector.matchScore} sličic.\n`;
-        temp += `Ponuja ti ${collector.matchedMyMissing.length} sličic:\n${collector.matchedMyMissing}\nIšče ${collector.matchedMyDuplicates.length} sličic:\n${collector.matchedMyDuplicates}\n`;
-        temp += `Predlagam zamenjavo ${collector.matchScore} njegovih sličic:\n${collector.matchedMyMissing.slice(0, collector.matchScore)}\nza ${collector.matchScore} tvojih:\n${collector.matchedMyDuplicates.slice(0, collector.matchScore)}\n`;
-        temp += `Z upoštevanje pravila zlata za zlato, skupinska za skupinsko, navadna za navadno, predlagam zamenjavo ${collector.recommendedTrade.length} njegovih sličic s tvojimi:\n${collector.recommendedTrade}\n`;
+        if (collector.matchScore === 0) {
+            return; // dont log empty matches
+        }
+
+        const matchedMyMissing = collector.matchedMyMissing.map((el) => {
+            return padZeros(el);
+        });
+
+        const matchedMyDuplicates = collector.matchedMyDuplicates.map((el) => {
+            return padZeros(el);
+        });
+
+        var temp = `---------------------------------------------------------------------\n${collector.username} iz dne ${collector.timestamp.toDateString()} je tvoj match za ${collector.matchScore} sličic.\n`;
+        temp += `Ponuja ti ${matchedMyMissing.length} svojih sličic:\n${matchedMyMissing.join(", ")}\nIšče ${matchedMyDuplicates.length} tvojih sličic:\n${matchedMyDuplicates.join(", ")}\n`;
+        temp += `Predlagam zamenjavo ${collector.recommendedTrade.length} sličic:\n${collector.recommendedTrade}\n`;
         writeLog += temp; 
 
     });
@@ -272,9 +298,19 @@ const showMatches = (matches, mySpecialData) => {
                 throw err;
             }
             console.log('Log saved!');
-            console.log("Rezultati zabeleženi v log.txt datoteki");
+            console.log("Results stored to log.txt file");
         });
     });
+
+};
+
+const padZeros = (number) => {
+
+    let temp = "" + number;
+    while (temp.length < 3) {
+        temp = "0" + temp;
+    }
+    return temp;
 
 };
 
