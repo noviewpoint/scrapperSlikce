@@ -3,22 +3,29 @@ const JSDOM = require("jsdom").JSDOM;
 const moment = require("moment");
 const cloneDeep = require("lodash.clonedeep");
 
-const username = process.env.username || "marvin";
-const albumId = process.env.albumId || 61;
-
 const init = async () => {
+	if (!process.env.sliciceNetUsername) {
+		console.error("Provide username for Slicice.net. Ending program...");
+		process.exit(0);
+	}
+
+	if (!process.env.sliciceNetAlbumId) {
+		console.error("Provide albumId for Slicice.net. Ending program...");
+		process.exit(0);
+	}
+
+	const username = process.env.sliciceNetUsername;
+	const albumId = process.env.sliciceNetAlbumId;
+
 	const results = new Map();
 	await scrape({ results, albumId });
-	if (!results.has("marvin")) throw new Error("Your data was not found on Slicice.net");
-	const userData = results.get(username);
-	const _results = [];
-	for (const result of results.values()) {
-		// skip yourself
-		if (result === userData) continue;
-		_results.push(result);
+	if (!results.has(username)) {
+		console.error(`Data for username '${username}' was not found on Slicice.net. Ending program...`);
 	}
-	autoTrade({ results: _results, userData });
-	console.log("There are no more suitable trading cards. Ending program");
+	const userData = results.get(username);
+	results.delete(username);
+	autoTrade({ results, userData });
+	console.log("There are no more suitable cards to trade. Ending program...");
 };
 
 const scrape = async ({ results, albumId, pagesCount = 0 }) => {
@@ -59,6 +66,7 @@ const scrape = async ({ results, albumId, pagesCount = 0 }) => {
 					.map(el => padZeros(el)),
 			),
 		};
+
 		results.set(res.username, res);
 	}
 	if (elements.length > 0) {
@@ -66,55 +74,14 @@ const scrape = async ({ results, albumId, pagesCount = 0 }) => {
 	}
 };
 
-const getSortedResults = ({ results, userData }) => {
-	return results
-		.map(result => {
-
-			result.matchedMyMissing = new Set();
-			for (const card of result.duplicates) {
-				if (userData.missing.has(card)) {
-					result.matchedMyMissing.add(card);
-				}
-			}
-
-			result.matchedMyDuplicates = new Set();
-			for (const card of result.missing) {
-				if (userData.duplicates.has(card)) {
-					result.matchedMyDuplicates.add(card);
-				}
-			}
-
-			result.matchScore = Math.min(result.matchedMyMissing.size, result.matchedMyDuplicates.size);
-			return result;
-		})
-		.filter(result => result.matchScore)
-		.sort((a, b) => b.matchScore - a.matchScore);
-};
-
-const padZeros = number => {
-	let temp = `${number}`;
-	while (temp.length < 3) {
-		temp = `0${temp}`;
-	}
-	return temp;
-};
-
 const autoTrade = ({ results, userData }) => {
-	const sortedResults = getSortedResults({ results, userData });
-
-	const sortedResultsCopy = cloneDeep(sortedResults);
 	const userDataCopy = cloneDeep(userData);
 
-	const bestMatch = sortedResultsCopy[0];
+	const bestMatch = getBestMatch({ results, userData });
 	if (!bestMatch) {
-		console.error("No best match");
 		return;
 	}
-
-	if (bestMatch.matchScore < 1) {
-		console.error("No one has nothing else to offer you");
-		return;
-	}
+	results.delete(bestMatch.username);
 
 	const toReceive = [...bestMatch.matchedMyMissing].slice(0, bestMatch.matchScore).map(card => {
 		userDataCopy.missing.delete(card);
@@ -124,9 +91,8 @@ const autoTrade = ({ results, userData }) => {
 		userDataCopy.duplicates.delete(card);
 		return card;
 	});
-	sortedResultsCopy.shift();
 
-	console.log(`TRADING WITH USER '${bestMatch.username}'`);
+	console.log(`\nTRADING WITH USER '${bestMatch.username}'`);
 	console.log(`${bestMatch.matchScore} CARDS TO GIVE     :  ${toGive.join(", ")}`);
 	console.log(`${bestMatch.matchScore} CARDS TO RECEIVE  :  ${toReceive.join(", ")}`);
 	console.log(
@@ -135,7 +101,43 @@ const autoTrade = ({ results, userData }) => {
 		)} unique cards available for trade.`,
 	);
 
-	autoTrade({ results: sortedResultsCopy, userData: userDataCopy });
+	autoTrade({ results, userData: userDataCopy });
+};
+
+const getBestMatch = ({ results, userData }) => {
+	let bestMatch = null;
+
+	for (const result of results.values()) {
+		result.matchedMyMissing = new Set();
+		for (const card of result.duplicates) {
+			if (userData.missing.has(card)) {
+				result.matchedMyMissing.add(card);
+			}
+		}
+
+		result.matchedMyDuplicates = new Set();
+		for (const card of result.missing) {
+			if (userData.duplicates.has(card)) {
+				result.matchedMyDuplicates.add(card);
+			}
+		}
+
+		result.matchScore = Math.min(result.matchedMyMissing.size, result.matchedMyDuplicates.size);
+
+		if (result.matchScore > 0 && (!bestMatch || bestMatch.matchScore < result.matchScore)) {
+			bestMatch = result;
+		}
+	}
+
+	return bestMatch;
+};
+
+const padZeros = number => {
+	let temp = `${number}`;
+	while (temp.length < 3) {
+		temp = `0${temp}`;
+	}
+	return temp;
 };
 
 init().catch(ex => console.error(ex));
