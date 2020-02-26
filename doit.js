@@ -6,6 +6,7 @@ const moment = require('moment');
 
 const sliciceUsername = process.env.sliciceUsername || "marvin";
 const daysOld = process.env.daysOld || 7;
+const albumId = process.env.albumId || 61;
 
 const elements = [];
 let mySpecialData = {};
@@ -17,7 +18,7 @@ const scrape = async (mySpecialUsername) => {
 
     while(count === 0 || dom.length > 0) {
 
-        const temp = new JSDOM(await rp("http://slicice.net/search/albums.html?go=true&id=51&position=" +  count));
+        const temp = new JSDOM(await rp("http://slicice.net/search/albums.html?go=true&id=" + albumId + "&position=" + count));
         dom = temp.window.document.querySelectorAll("div.offersBrowserRight.fix.right");
 
         dom.forEach((el) => {
