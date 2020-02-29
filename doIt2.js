@@ -65,29 +65,25 @@ const scrapeAlbum = async albumId => {
 			const missing = body
 				.querySelector("p.missing")
 				.textContent.replace(/iščem: /g, "")
-				.replace(/\s/g, "");
+				.replace(/\s/g, "")
+				.split(",")
+				.filter(el => el !== "")
+				.map(el => padZeros(el));
 			const duplicates = body
 				.querySelector("p.duplicates")
 				.textContent.replace(/ponujam: /g, "")
-				.replace(/\s/g, "");
+				.replace(/\s/g, "")
+				.split(",")
+				.filter(el => el !== "")
+				.map(el => padZeros(el));
 
 			const res = {
 				username,
 				profilePageLink,
 				messageLink,
 				timestamp,
-				missing: new Set(
-					missing
-						.split(",")
-						.filter(el => el !== "")
-						.map(el => padZeros(el)),
-				),
-				duplicates: new Set(
-					duplicates
-						.split(",")
-						.filter(el => el !== "")
-						.map(el => padZeros(el)),
-				),
+				missing: new Set(missing),
+				duplicates: new Set(duplicates),
 			};
 
 			results.set(res.username, res);
