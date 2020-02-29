@@ -17,12 +17,12 @@ const init = async () => {
 	const results = await scrapeAlbum(albumId);
 	if (!results.has(username)) {
 		console.error(`Data for username '${username}' was not found on Slicice.net. Ending program...`);
+		process.exit(0);
 	}
 	const userData = results.get(username);
 	results.delete(username);
 	const trades = autoTrade({ results, userData });
 	await sendMessages({ trades, username, password, doSendPrivateMessages });
-	console.log("There are no more suitable cards to trade. Ending program...");
 };
 
 const handleCheckRequiredUserParameters = () => {
@@ -45,13 +45,11 @@ const handleCheckRequiredUserParameters = () => {
 const scrapeAlbum = async albumId => {
 	const results = new Map();
 
-	const firstPage = await scrapeAlbumPage({ albumId, pageNumber: 0 });
-	const otherPagesNumbers = getValidPagesNumbers({ albumId, page: firstPage });
-	const otherPages = [];
+	const pages = [await scrapeAlbumPage({ albumId, pageNumber: 0 })];
+	const otherPagesNumbers = getValidPagesNumbers({ albumId, page: pages[0] });
 	for (const num of otherPagesNumbers) {
-		otherPages.push(await scrapeAlbumPage({ albumId, pageNumber: num }));
+		pages.push(await scrapeAlbumPage({ albumId, pageNumber: num }));
 	}
-	const pages = [firstPage, ...otherPages];
 
 	for (const page of pages) {
 		const elements = page.window.document.querySelectorAll("div.offersBrowserRight.fix.right");
@@ -102,6 +100,36 @@ const scrapeAlbum = async albumId => {
 const scrapeAlbumPage = async ({ albumId, pageNumber }) => {
 	const url = `http://slicice.net/search/albums.html?go=true&id=${albumId}&position=${pageNumber}`;
 	return scrapePage({ url });
+};
+
+const scrapeLoginPage = async ({ username, password }) => {
+	const url = `http://slicice.net/sw4i/login`;
+	return scrapePage({
+		url,
+		method: "POST",
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Cookie: JSESSIONID,
+		},
+		data: querystring.encode({ username, password }),
+	});
+};
+
+const scrapePrivateMessagePage = async ({ receiver, subject = "MENJAVA SLICIC", body }) => {
+	const url = `http://slicice.net/sw4i/newPrivateMessage`;
+	return scrapePage({
+		url,
+		method: "POST",
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Cookie: JSESSIONID,
+		},
+		data: querystring.encode({
+			receiver,
+			subject,
+			body,
+		}),
+	});
 };
 
 const scrapePage = async ({ url, method = "GET", headers, data }) => {
@@ -214,43 +242,23 @@ const getBestMatch = ({ results, userData }) => {
 };
 
 const sendMessages = async ({ trades, username, password, doSendPrivateMessages }) => {
-	const loginUrl = `http://slicice.net/sw4i/login`;
-	const loginRes = await scrapePage({
-		url: loginUrl,
-		method: "POST",
-		headers: {
-			"Content-Type": "application/x-www-form-urlencoded",
-			Cookie: JSESSIONID,
-		},
-		data: querystring.encode({ username, password }),
-	});
+	const loginPage = await scrapeLoginPage({ username, password });
 
-	const loginCheck = loginRes.window.document.querySelector(
+	const loginCheck = loginPage.window.document.querySelector(
 		"#header > div.userNav > ul > li:nth-child(1) > a > span",
 	);
 	if (!(loginCheck && loginCheck.textContent === username)) {
-		console.error("Script did not login correctly for your account.");
+		console.error(
+			"Script did not login correctly to your account on Slicice.net. Cannot send private messages. Ending program...",
+		);
+		process.exit(0);
 	}
 
-	// send message to yourself
-	const privateMessageUrl = `http://slicice.net/sw4i/newPrivateMessage`;
-	for (const [username, text] of trades) {
+	for (const [receiver, body] of trades) {
 		if (doSendPrivateMessages) {
-			await scrapePage({
-				url: privateMessageUrl,
-				method: "POST",
-				headers: {
-					"Content-Type": "application/x-www-form-urlencoded",
-					Cookie: JSESSIONID,
-				},
-				data: querystring.encode({
-					receiver: username,
-					subject: "MENJAVA SLICIC",
-					body: text,
-				}),
-			});
+			await scrapePrivateMessagePage({ receiver, body });
 		}
-		console.log(text);
+		console.log(body);
 	}
 };
 
