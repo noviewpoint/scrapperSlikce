@@ -10,7 +10,7 @@
   "author": "David Brvar",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "axios-cookiejar-support": "^0.5.1",
     "jsdom": "^11.8.0",
     "lodash.clonedeep": "^4.5.0",

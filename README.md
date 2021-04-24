@@ -12,4 +12,4 @@
 
 1. run 'npm install'
 
-2. export sliciceNetUsername=marvin && sliciceNetPassword=xxx && export sliciceNetAlbumId=61 && export sliciceNetDoSendPrivateMessages=false && node doIt2.js
+2. export sliciceNetUsername=marvin && export sliciceNetPassword=xxx && export sliciceNetAlbumId=61 && export sliciceNetDoSendPrivateMessages=false && node doIt2.js
